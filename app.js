@@ -1,6 +1,7 @@
 const OSM_STANDARD = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const DATA_URL = 'forest_blocks.geojson';
 const BASEMAP_STORAGE_KEY = 'kheban-forest-basemap';
+const DEBUG_MODE = true;
 
 const BASEMAPS = {
   esriSatellite: {
@@ -81,6 +82,9 @@ const state = {
   gpsFollow: false,
   gpsLastLatLng: null,
   currentLocationFeatureId: null,
+  searchHighlightFeatureIds: new Set(),
+  pulseTimer: null,
+  pulseOn: false,
   selectedFeatureId: null,
   imageryYear: '2026',
   baseType: 'esriSatellite',
@@ -100,6 +104,7 @@ const els = {
   searchInput: document.getElementById('searchInput'),
   locateButton: document.getElementById('locateButton'),
   quickLocateButton: document.getElementById('quickLocateButton'),
+  testGpsButton: document.getElementById('testGpsButton'),
   followButton: document.getElementById('followButton'),
   recenterButton: document.getElementById('recenterButton'),
   clearButton: document.getElementById('clearButton'),
@@ -132,7 +137,6 @@ const els = {
   detailLdlr: document.getElementById('detailLdlr'),
   detailNamtr: document.getElementById('detailNamtr'),
   closeDetailButton: document.getElementById('closeDetailButton'),
-  goToPolygonButton: document.getElementById('goToPolygonButton'),
   currentBlockCard: document.getElementById('currentBlockCard'),
   currentXa: document.getElementById('currentXa'),
   currentTk: document.getElementById('currentTk'),
@@ -159,9 +163,11 @@ async function boot() {
   updateNetworkStatus();
   window.addEventListener('online', updateNetworkStatus);
   window.addEventListener('offline', updateNetworkStatus);
+  registerServiceWorker();
   if (!window.L) {
     throw new Error('Leaflet failed to load. Check Leaflet CDN requests in the browser console.');
   }
+  syncDebugUi();
 
   state.map = L.map('map', {
     zoomControl: false,
@@ -192,12 +198,11 @@ function attachUiEvents() {
   });
   els.locateButton.addEventListener('click', locateMe);
   els.quickLocateButton.addEventListener('click', quickLocate);
+  els.testGpsButton?.addEventListener('click', testGps);
   els.followButton.addEventListener('click', toggleGpsFollow);
   els.recenterButton.addEventListener('click', recenterToGps);
   els.clearButton.addEventListener('click', clearSearch);
   els.closeDetailButton.addEventListener('click', hideDetailSheet);
-  els.goToPolygonButton.addEventListener('click', goToSelectedPolygon);
-  document.addEventListener('click', handlePolygonActionClick);
   els.esriSatelliteButton.addEventListener('click', () => setBasemap('esriSatellite'));
   els.googleSatelliteButton.addEventListener('click', () => setBasemap('googleSatellite'));
   els.googleHybridButton.addEventListener('click', () => setBasemap('googleHybrid'));
@@ -225,6 +230,9 @@ function attachUiEvents() {
       return;
     }
     closeLayerPanel();
+    clearSearchHighlight();
+    state.map.closePopup();
+    hideDetailSheet();
   });
 }
 
@@ -305,6 +313,20 @@ function saveBasemap(type) {
   } catch {
     // Local storage can be unavailable in private browsing or file mode.
   }
+}
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) {
+    return;
+  }
+
+  window.addEventListener('load', async () => {
+    try {
+      await navigator.serviceWorker.register('sw.js');
+    } catch (error) {
+      console.warn('Service worker registration failed', error);
+    }
+  });
 }
 
 function setMeasureMode(mode) {
@@ -505,7 +527,10 @@ function renderFeatures(features) {
         const key = feature.id || feature.properties?.id || `${feature.properties.tk}/${feature.properties.khoanh}/${feature.properties.lo}`;
         layer._khebanKey = key;
         bindForestLabel(feature, layer);
-        layer.on('click', () => selectFeature(feature, layer, true));
+        layer.on('click', (event) => {
+          event.originalEvent?.stopPropagation();
+          selectFeature(feature, layer, true);
+        });
       },
     },
   );
@@ -521,13 +546,15 @@ function renderFeatures(features) {
 function featureStyle(feature) {
   const style = getForestStyle(feature.properties?.ldlr);
   const key = feature.id || `${feature.properties?.tk}/${feature.properties?.khoanh}/${feature.properties?.lo}`;
+  const isSearchHighlighted = state.searchHighlightFeatureIds.has(key);
   const isCurrent = key === state.currentLocationFeatureId;
+  const isHighlighted = isSearchHighlighted || isCurrent;
   return {
-    color: isCurrent ? '#facc15' : style.color,
-    weight: isCurrent ? 4 : 1.4,
-    opacity: 1,
+    color: isHighlighted ? '#facc15' : style.color,
+    weight: isSearchHighlighted ? (state.pulseOn ? 6 : 5) : (isCurrent ? 4 : 1.4),
+    opacity: isSearchHighlighted && state.pulseOn ? 0.82 : 1,
     fillColor: style.fillColor,
-    fillOpacity: 0.58,
+    fillOpacity: isSearchHighlighted ? 0.68 : 0.58,
     dashArray: null,
   };
 }
@@ -674,10 +701,10 @@ function computeLargeLabelThreshold(features) {
   return values[index] || 0;
 }
 
-function parseQuery(raw) {
+function parseQueryParts(raw) {
   const value = raw.trim().toLowerCase();
   if (!value) {
-    return null;
+    return [];
   }
 
   const normalized = value.replace(/\s+/g, ' ').replace(/\btk\s+/g, 'tk');
@@ -685,75 +712,132 @@ function parseQuery(raw) {
     ? normalized.split('/').map((part) => part.trim()).filter(Boolean)
     : normalized.split(' ').map((part) => part.trim()).filter(Boolean);
 
-  if (!parts.length) {
-    return null;
-  }
-
-  const cleaned = parts.map((part, index) => {
-    if (index === 0) {
-      return part.replace(/^tk/, '');
-    }
-    if (index === 1) {
-      return part.replace(/^k/, '');
-    }
-    if (index === 2) {
-      return part.replace(/^l/, '');
-    }
-    return part;
-  });
-
-  return {
-    tk: cleaned[0] || '',
-    khoanh: cleaned[1] || '',
-    lo: cleaned[2] || '',
-  };
+  return parts.map((part) => part.replace(/^tk/, '').replace(/^k/, '').replace(/^l/, ''));
 }
 
-function matches(feature, query) {
+function findSearchResults(rawQuery) {
+  const parts = parseQueryParts(rawQuery);
+  if (!parts.length) {
+    return { type: 'all', results: state.features };
+  }
+
+  const candidates = [];
+  const startsWithTk = /^\s*tk/i.test(rawQuery);
+  if (parts.length >= 3) {
+    candidates.push({
+      type: 'tk-khoanh-lo',
+      query: { tk: parts[0], khoanh: parts[1], lo: parts[2] },
+    });
+  }
+  if (parts.length === 2 && startsWithTk) {
+    candidates.push({
+      type: 'tk-khoanh',
+      query: { tk: parts[0], khoanh: parts[1] },
+    });
+  }
+  if (parts.length === 2) {
+    candidates.push({
+      type: 'khoanh-lo',
+      query: { khoanh: parts[0], lo: parts[1] },
+    });
+  }
+  if (parts.length === 1) {
+    candidates.push({ type: 'khoanh', query: { khoanh: parts[0] } });
+    candidates.push({ type: 'lo', query: { lo: parts[0] } });
+  }
+
+  for (const candidate of candidates) {
+    const results = state.features.filter((feature) => matchesQuery(feature, candidate.query));
+    if (results.length) {
+      return { type: candidate.type, results };
+    }
+  }
+
+  return { type: 'none', results: [] };
+}
+
+function matchesQuery(feature, query) {
   if (!query) {
     return true;
   }
   const props = feature.properties;
   return (
-    (!query.tk || props.tk.toLowerCase() === query.tk) &&
-    (!query.khoanh || props.khoanh.toLowerCase() === query.khoanh) &&
-    (!query.lo || props.lo.toLowerCase() === query.lo)
+    (!query.tk || String(props.tk).toLowerCase() === query.tk) &&
+    (!query.khoanh || String(props.khoanh).toLowerCase() === query.khoanh) &&
+    (!query.lo || String(props.lo).toLowerCase() === query.lo)
   );
 }
 
 function updateResults(rawQuery) {
-  const query = parseQuery(rawQuery);
-  const results = state.features.filter((feature) => matches(feature, query));
-  els.resultsCount.textContent = `${results.length} result${results.length === 1 ? '' : 's'}`;
+  const search = findSearchResults(rawQuery);
+  const results = search.results;
+  els.resultsCount.textContent = `${results.length} kết quả`;
   els.resultsList.innerHTML = '';
 
   if (!rawQuery.trim()) {
     els.resultsPanel.classList.remove('visible');
+    clearSearchHighlight();
+    state.map.closePopup();
+    hideDetailSheet();
     fitAllForestPolygons();
     return;
   }
 
   els.resultsPanel.classList.add('visible');
+
+  if (!results.length) {
+    clearSearchHighlight();
+    state.map.closePopup();
+    fitAllForestPolygons();
+    return;
+  }
+
+  if (search.type === 'khoanh' || search.type === 'tk-khoanh') {
+    showKhoanhSearchSummary(results);
+    focusSearchResults(results, { openParcelDetail: false, keepResultsOpen: true });
+    return;
+  }
+
+  renderSearchResultList(results);
+
+  if (search.type === 'lo' && results.length > 1) {
+    clearSearchHighlight();
+    state.map.closePopup();
+    hideDetailSheet();
+    return;
+  }
+
+  focusSearchResults([results[0]]);
+}
+
+function renderSearchResultList(results) {
   results.slice(0, 20).forEach((feature) => {
     const button = document.createElement('button');
     button.className = 'result-item';
     button.type = 'button';
     button.innerHTML = `
-      <strong>TK ${escapeHtml(feature.properties.tk)} / K ${escapeHtml(feature.properties.khoanh)} / L ${escapeHtml(feature.properties.lo)}</strong>
+      <strong>Khoảnh ${escapeHtml(feature.properties.khoanh)} - Lô ${escapeHtml(feature.properties.lo)}</strong>
       <span>${escapeHtml(feature.properties.xa)} · ${escapeHtml(formatArea(feature.properties.dtich))} · ${escapeHtml(feature.properties.ldlr)}</span>
     `;
-    button.addEventListener('click', () => focusFeature(feature));
+    button.addEventListener('click', () => focusSearchResults([feature]));
     els.resultsList.appendChild(button);
   });
+}
 
-  if (results.length) {
-    const first = results[0];
-    const bounds = results.reduce((acc, feature) => acc.extend(feature.bounds), L.latLngBounds(results[0].bounds));
-    state.map.fitBounds(bounds.pad(0.12), { maxZoom: 16, animate: true });
-    focusFeature(first, false);
-  } else {
-    fitAllForestPolygons();
-  }
+function showKhoanhSearchSummary(results) {
+  const first = results[0];
+  const totalArea = results.reduce((sum, feature) => {
+    const area = Number(feature.properties?.dtich);
+    return Number.isFinite(area) ? sum + area : sum;
+  }, 0);
+  els.resultsCount.textContent = `Khoảnh ${first.properties.khoanh}`;
+  els.resultsList.innerHTML = `
+    <div class="result-summary">
+      <strong>Khoảnh ${escapeHtml(first.properties.khoanh)}</strong>
+      <span>Số lô: ${results.length}</span>
+      <span>Tổng diện tích: ${formatNumber(totalArea)} ha</span>
+    </div>
+  `;
 }
 
 function runSearch() {
@@ -765,6 +849,8 @@ function clearSearch() {
   els.resultsList.innerHTML = '';
   els.resultsCount.textContent = '0 results';
   els.resultsPanel.classList.remove('visible');
+  clearSearchHighlight();
+  state.map.closePopup();
   hideDetailSheet();
   fitAllForestPolygons();
 }
@@ -783,9 +869,39 @@ function fitAllForestPolygons() {
   }
 }
 
+function focusSearchResults(features, options = {}) {
+  const { openParcelDetail = true, keepResultsOpen = false } = options;
+  const validFeatures = features.filter(Boolean);
+  if (!validFeatures.length) {
+    return;
+  }
+
+  const keys = validFeatures.map(getFeatureKey);
+  setSearchHighlights(keys);
+
+  const bounds = getFeaturesBounds(validFeatures);
+  if (bounds?.isValid()) {
+    state.map.fitBounds(bounds.pad(0.15), { maxZoom: validFeatures.length > 1 ? 16 : 17, animate: true });
+  }
+
+  const first = validFeatures[0];
+  state.selectedFeatureId = getFeatureKey(first);
+  if (!keepResultsOpen) {
+    collapseSearchResults();
+  }
+  if (openParcelDetail) {
+    showDetailSheet(first);
+    openFeaturePopup(first);
+  } else {
+    state.map.closePopup();
+    hideDetailSheet();
+  }
+}
+
 function focusFeature(feature, openDetail = true) {
   const key = feature.id || feature.properties?.id || `${feature.properties.tk}/${feature.properties.khoanh}/${feature.properties.lo}`;
   state.selectedFeatureId = key;
+  setSearchHighlights([key]);
   const layer = findLayerByKey(key);
   if (layer) {
     state.map.fitBounds(layer.getBounds().pad(0.15), { maxZoom: 17, animate: true });
@@ -797,26 +913,17 @@ function focusFeature(feature, openDetail = true) {
 
   if (openDetail) {
     showDetailSheet(feature);
+    openFeaturePopup(feature);
   }
 }
 
 function selectFeature(feature, layer, openDetail) {
-  state.selectedFeatureId = feature.id || layer._khebanKey;
-  const content = `
-    <div class="popup-card">
-      <strong>Xa:</strong> ${escapeHtml(feature.properties.xa)}<br>
-      <strong>Tk:</strong> ${escapeHtml(feature.properties.tk)}<br>
-      <strong>Khoanh:</strong> ${escapeHtml(feature.properties.khoanh)}<br>
-      <strong>Lo:</strong> ${escapeHtml(feature.properties.lo)}<br>
-      <strong>Dientich:</strong> ${escapeHtml(formatArea(feature.properties.dtich))}<br>
-      <strong>LDLR:</strong> ${escapeHtml(feature.properties.ldlr)}
-      <button class="popup-action" type="button" data-go-polygon="${escapeHtml(state.selectedFeatureId)}">Go to polygon</button>
-    </div>
-  `;
-  layer.bindPopup(content, { closeButton: true, maxWidth: 280 });
-  layer.openPopup();
+  const key = feature.id || layer._khebanKey;
+  state.selectedFeatureId = key;
+  setSearchHighlights([key]);
   if (openDetail) {
     showDetailSheet(feature);
+    openFeaturePopup(feature);
   }
 }
 
@@ -830,7 +937,6 @@ function showDetailSheet(feature) {
   els.detailDtich.textContent = formatArea(props.dtich);
   els.detailLdlr.textContent = props.ldlr || '-';
   els.detailNamtr.textContent = formatYear(props.namtr);
-  els.goToPolygonButton.dataset.goPolygon = feature.id || `${props.tk}/${props.khoanh}/${props.lo}`;
   els.detailSheet.classList.remove('hidden');
 }
 
@@ -838,29 +944,26 @@ function hideDetailSheet() {
   els.detailSheet.classList.add('hidden');
 }
 
-function handlePolygonActionClick(event) {
-  const button = event.target.closest('[data-go-polygon]');
-  if (!button) {
+function openFeaturePopup(feature) {
+  const layer = findLayerByKey(getFeatureKey(feature));
+  const latlng = layer?.getBounds().getCenter() || feature.bounds?.getCenter();
+  if (!latlng) {
     return;
   }
-  goToPolygon(button.dataset.goPolygon);
-}
-
-function goToSelectedPolygon(event) {
-  event?.stopPropagation();
-  goToPolygon(state.selectedFeatureId || els.goToPolygonButton.dataset.goPolygon);
-}
-
-function goToPolygon(key) {
-  if (!key) {
-    return;
-  }
-  const layer = findLayerByKey(key);
-  if (!layer) {
-    return;
-  }
-  const center = layer.getBounds().getCenter();
-  state.map.setView(center, Math.max(state.map.getZoom(), 17), { animate: true });
+  const props = feature.properties;
+  L.popup({ closeButton: true, maxWidth: 280 })
+    .setLatLng(latlng)
+    .setContent(`
+      <div class="popup-card">
+        <strong>Xã:</strong> ${escapeHtml(props.xa)}<br>
+        <strong>TK:</strong> ${escapeHtml(props.tk)}<br>
+        <strong>Khoảnh:</strong> ${escapeHtml(props.khoanh)}<br>
+        <strong>Lô:</strong> ${escapeHtml(props.lo)}<br>
+        <strong>Loại rừng:</strong> ${escapeHtml(props.ldlr)}<br>
+        <strong>Diện tích:</strong> ${escapeHtml(formatArea(props.dtich))}
+      </div>
+    `)
+    .openOn(state.map);
 }
 
 async function locateMe() {
@@ -887,44 +990,11 @@ async function locateMe() {
 }
 
 function handleGpsPosition(position) {
-  const latlng = [position.coords.latitude, position.coords.longitude];
-  const accuracy = Math.max(Number(position.coords.accuracy) || 0, 5);
-  state.gpsLastLatLng = latlng;
-
-  if (!state.locationMarker) {
-    state.locationMarker = L.circleMarker(latlng, {
-      radius: 7,
-      color: '#ffffff',
-      weight: 2,
-      fillColor: '#2f6bff',
-      fillOpacity: 1,
-      interactive: false,
-    }).addTo(state.map);
-  } else {
-    state.locationMarker.setLatLng(latlng);
-  }
-
-  if (!state.locationAccuracyCircle) {
-    state.locationAccuracyCircle = L.circle(latlng, {
-      radius: accuracy,
-      color: '#2f6bff',
-      weight: 1,
-      opacity: 0.35,
-      fillColor: '#2f6bff',
-      fillOpacity: 0.12,
-      interactive: false,
-    }).addTo(state.map);
-  } else {
-    state.locationAccuracyCircle.setLatLng(latlng);
-    state.locationAccuracyCircle.setRadius(accuracy);
-  }
-
-  state.locationMarker.bindPopup('Current GPS location');
-  if (state.gpsFollow) {
-    state.map.setView(latlng, Math.max(state.map.getZoom(), 17), { animate: true });
-  }
-
-  updateCurrentForestBlock(latlng);
+  processGpsUpdate({
+    latlng: [position.coords.latitude, position.coords.longitude],
+    accuracy: Math.max(Number(position.coords.accuracy) || 0, 5),
+    centerMap: state.gpsFollow,
+  });
 }
 
 function quickLocate() {
@@ -940,6 +1010,26 @@ function quickLocate() {
     state.map.setView(state.gpsLastLatLng, Math.max(state.map.getZoom(), 17), { animate: true });
     updateCurrentForestBlock(state.gpsLastLatLng);
   }
+}
+
+function testGps() {
+  const feature = getSelectedOrFirstFeature();
+  if (!feature) {
+    alert('No parcel available for GPS test.');
+    return;
+  }
+  const center = feature.bounds?.getCenter();
+  if (!center) {
+    alert('Selected parcel has no valid center.');
+    return;
+  }
+  state.gpsFollow = true;
+  syncGpsButtons();
+  processGpsUpdate({
+    latlng: [center.lat, center.lng],
+    accuracy: 5,
+    centerMap: true,
+  });
 }
 
 function handleGpsError() {
@@ -1004,6 +1094,87 @@ function updateCurrentForestBlock(latlng) {
   els.currentBlockCard.classList.remove('hidden');
 }
 
+function processGpsUpdate({ latlng, accuracy, centerMap }) {
+  state.gpsLastLatLng = latlng;
+
+  if (!state.locationMarker) {
+    state.locationMarker = L.circleMarker(latlng, {
+      radius: 7,
+      color: '#ffffff',
+      weight: 2,
+      fillColor: '#2f6bff',
+      fillOpacity: 1,
+      interactive: false,
+    }).addTo(state.map);
+  } else {
+    state.locationMarker.setLatLng(latlng);
+  }
+
+  if (!state.locationAccuracyCircle) {
+    state.locationAccuracyCircle = L.circle(latlng, {
+      radius: accuracy,
+      color: '#2f6bff',
+      weight: 1,
+      opacity: 0.35,
+      fillColor: '#2f6bff',
+      fillOpacity: 0.12,
+      interactive: false,
+    }).addTo(state.map);
+  } else {
+    state.locationAccuracyCircle.setLatLng(latlng);
+    state.locationAccuracyCircle.setRadius(accuracy);
+  }
+
+  if (centerMap) {
+    state.map.setView(latlng, Math.max(state.map.getZoom(), 17), { animate: true });
+  }
+
+  updateCurrentForestBlock(latlng);
+}
+
+function setSearchHighlights(keys) {
+  const nextKeys = keys.filter(Boolean);
+  if (!nextKeys.length) {
+    clearSearchHighlight();
+    return;
+  }
+  state.searchHighlightFeatureIds = new Set(nextKeys);
+  startHighlightPulse();
+  refreshPolygonStyles();
+}
+
+function clearSearchHighlight() {
+  if (!state.searchHighlightFeatureIds.size) {
+    return;
+  }
+  state.searchHighlightFeatureIds.clear();
+  stopHighlightPulse();
+  refreshPolygonStyles();
+}
+
+function startHighlightPulse() {
+  if (state.pulseTimer) {
+    return;
+  }
+  state.pulseOn = false;
+  state.pulseTimer = window.setInterval(() => {
+    if (!state.searchHighlightFeatureIds.size) {
+      stopHighlightPulse();
+      return;
+    }
+    state.pulseOn = !state.pulseOn;
+    refreshPolygonStyles();
+  }, 700);
+}
+
+function stopHighlightPulse() {
+  if (state.pulseTimer) {
+    window.clearInterval(state.pulseTimer);
+    state.pulseTimer = null;
+  }
+  state.pulseOn = false;
+}
+
 function refreshPolygonStyles() {
   if (!state.layer) {
     return;
@@ -1053,6 +1224,35 @@ function ringContainsPoint(ring, point) {
     }
   }
   return inside;
+}
+
+function getSelectedOrFirstFeature() {
+  const selected = state.selectedFeatureId ? findFeatureById(state.selectedFeatureId) : null;
+  return selected || state.features[0] || null;
+}
+
+function findFeatureById(key) {
+  return state.features.find((feature) => feature.id === key) || null;
+}
+
+function getFeatureKey(feature) {
+  return feature.id || feature.properties?.id || `${feature.properties.tk}/${feature.properties.khoanh}/${feature.properties.lo}`;
+}
+
+function getFeaturesBounds(features) {
+  const bounds = features.reduce((acc, feature) => {
+    const layer = findLayerByKey(getFeatureKey(feature));
+    const featureBounds = layer?.getBounds() || feature.bounds;
+    return featureBounds ? acc.extend(featureBounds) : acc;
+  }, L.latLngBounds([]));
+  return bounds.isValid() ? bounds : null;
+}
+
+function syncDebugUi() {
+  if (!els.testGpsButton) {
+    return;
+  }
+  els.testGpsButton.classList.toggle('hidden', !DEBUG_MODE);
 }
 
 function findLayerByKey(key) {

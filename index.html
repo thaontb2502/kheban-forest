@@ -20,7 +20,7 @@
   <div class="app-shell">
     <form class="search-bar floating-card" id="searchForm" aria-label="Search forest blocks">
       <label class="sr-only" for="searchInput">Search forest block</label>
-      <input id="searchInput" type="search" autocomplete="off" inputmode="search" placeholder="TK/Khoảnh/Lô">
+      <input id="searchInput" type="search" autocomplete="off" inputmode="search" placeholder="Khoảnh/Lô · Ví dụ: 22/35">
       <span class="search-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
           <circle cx="11" cy="11" r="7"></circle>
@@ -81,6 +81,7 @@
     <section class="gps-panel floating-card" aria-label="GPS controls">
       <button class="gps-primary" id="locateButton" type="button" aria-label="Show GPS location">GPS</button>
       <button class="gps-quick" id="quickLocateButton" type="button" aria-label="I am here">📍 Tôi đang ở đâu</button>
+      <button class="gps-test hidden" id="testGpsButton" type="button" aria-label="Test GPS">Test GPS</button>
       <div class="gps-actions">
         <button id="followButton" type="button" aria-label="Follow user location" aria-pressed="false">Follow</button>
         <button id="recenterButton" type="button" aria-label="Recenter map to current location">Center</button>
@@ -145,7 +146,6 @@
         <div><dt>Loại rừng</dt><dd id="detailLdlr">-</dd></div>
         <div><dt>Năm trồng</dt><dd id="detailNamtr">-</dd></div>
       </dl>
-      <button class="detail-action" id="goToPolygonButton" type="button">Go to polygon</button>
     </aside>
   </div>
 

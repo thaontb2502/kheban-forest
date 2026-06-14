@@ -266,6 +266,14 @@ button {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.gps-test {
+  width: 100%;
+  border-radius: 10px;
+  font-weight: 700;
+  background: rgba(250, 204, 21, 0.16);
+  color: #fff7cc;
+}
+
 .gps-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -479,6 +487,25 @@ button {
   margin-bottom: 4px;
 }
 
+.result-summary {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  display: grid;
+  gap: 6px;
+}
+
+.result-summary strong {
+  font-size: 15px;
+}
+
+.result-summary span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .detail-sheet {
   position: absolute;
   left: calc(10px + env(safe-area-inset-left));
@@ -530,24 +557,6 @@ button {
   margin: 0;
   font-size: 15px;
   word-break: break-word;
-}
-
-.detail-action,
-.popup-action {
-  width: calc(100% - 24px);
-  margin: 12px 12px 0;
-  min-height: 40px;
-  border-radius: 10px;
-  background: var(--accent-strong);
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.popup-action {
-  width: 100%;
-  margin: 10px 0 0;
 }
 
 .leaflet-container {
