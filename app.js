@@ -99,6 +99,7 @@ const els = {
   searchForm: document.getElementById('searchForm'),
   searchInput: document.getElementById('searchInput'),
   locateButton: document.getElementById('locateButton'),
+  quickLocateButton: document.getElementById('quickLocateButton'),
   followButton: document.getElementById('followButton'),
   recenterButton: document.getElementById('recenterButton'),
   clearButton: document.getElementById('clearButton'),
@@ -133,6 +134,7 @@ const els = {
   closeDetailButton: document.getElementById('closeDetailButton'),
   goToPolygonButton: document.getElementById('goToPolygonButton'),
   currentBlockCard: document.getElementById('currentBlockCard'),
+  currentXa: document.getElementById('currentXa'),
   currentTk: document.getElementById('currentTk'),
   currentKhoanh: document.getElementById('currentKhoanh'),
   currentLo: document.getElementById('currentLo'),
@@ -189,6 +191,7 @@ function attachUiEvents() {
     runSearch();
   });
   els.locateButton.addEventListener('click', locateMe);
+  els.quickLocateButton.addEventListener('click', quickLocate);
   els.followButton.addEventListener('click', toggleGpsFollow);
   els.recenterButton.addEventListener('click', recenterToGps);
   els.clearButton.addEventListener('click', clearSearch);
@@ -525,7 +528,7 @@ function featureStyle(feature) {
     opacity: 1,
     fillColor: style.fillColor,
     fillOpacity: 0.58,
-    dashArray: isCurrent ? '6 4' : null,
+    dashArray: null,
   };
 }
 
@@ -924,6 +927,21 @@ function handleGpsPosition(position) {
   updateCurrentForestBlock(latlng);
 }
 
+function quickLocate() {
+  if (state.gpsWatchId === null) {
+    locateMe();
+    return;
+  }
+
+  state.gpsFollow = true;
+  syncGpsButtons();
+
+  if (state.gpsLastLatLng) {
+    state.map.setView(state.gpsLastLatLng, Math.max(state.map.getZoom(), 17), { animate: true });
+    updateCurrentForestBlock(state.gpsLastLatLng);
+  }
+}
+
 function handleGpsError() {
   alert('Unable to access GPS location.');
   stopGpsWatch();
@@ -977,6 +995,7 @@ function updateCurrentForestBlock(latlng) {
   }
 
   const props = feature.properties;
+  els.currentXa.textContent = props.xa || '-';
   els.currentTk.textContent = props.tk || '-';
   els.currentKhoanh.textContent = props.khoanh || '-';
   els.currentLo.textContent = props.lo || '-';

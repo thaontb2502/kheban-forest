@@ -80,6 +80,7 @@
 
     <section class="gps-panel floating-card" aria-label="GPS controls">
       <button class="gps-primary" id="locateButton" type="button" aria-label="Show GPS location">GPS</button>
+      <button class="gps-quick" id="quickLocateButton" type="button" aria-label="I am here">📍 Tôi đang ở đâu</button>
       <div class="gps-actions">
         <button id="followButton" type="button" aria-label="Follow user location" aria-pressed="false">Follow</button>
         <button id="recenterButton" type="button" aria-label="Recenter map to current location">Center</button>
@@ -87,8 +88,9 @@
     </section>
 
     <section class="current-block-card floating-card hidden" id="currentBlockCard" aria-live="polite">
-      <div class="current-block-title">Bạn đang ở</div>
+      <div class="current-block-title">Bạn đang ở:</div>
       <dl class="current-block-grid">
+        <div><dt>Xã</dt><dd id="currentXa">-</dd></div>
         <div><dt>TK</dt><dd id="currentTk">-</dd></div>
         <div><dt>Khoảnh</dt><dd id="currentKhoanh">-</dd></div>
         <div><dt>Lô</dt><dd id="currentLo">-</dd></div>
