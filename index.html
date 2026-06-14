@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17311f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="KheBan Forest">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://server.arcgisonline.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'">
+  <link rel="stylesheet" href="styles.css">
+  <title>KheBan Forest</title>
+</head>
+<body>
+  <div class="app-shell">
+    <form class="search-bar floating-card" id="searchForm" aria-label="Search forest blocks">
+      <label class="sr-only" for="searchInput">Search forest block</label>
+      <input id="searchInput" type="search" autocomplete="off" inputmode="search" placeholder="TK/Khoảnh/Lô">
+      <span class="search-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="M20 20l-3.5-3.5"></path>
+        </svg>
+      </span>
+    </form>
+
+    <div class="status status-inline" id="networkStatus">Online</div>
+
+    <button class="layer-fab" id="layerMenuButton" type="button" aria-label="Open layer controls" aria-expanded="false">
+      <span aria-hidden="true">☰</span>
+    </button>
+
+    <section class="layer-panel floating-card hidden" id="layerPanel" aria-label="Map controls">
+      <div class="panel-section">
+        <div class="panel-title">Basemap</div>
+        <div class="button-row basemap-grid" role="group" aria-label="Basemap">
+          <button class="active" id="esriSatelliteButton" type="button">Esri Satellite</button>
+          <button id="googleSatelliteButton" type="button">Google Satellite</button>
+          <button id="googleHybridButton" type="button">Google Hybrid</button>
+          <button id="osmButton" type="button">OpenStreetMap</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">Layers</div>
+        <label class="toggle-row">
+          <input id="polygonsToggle" type="checkbox" checked>
+          <span>Forest polygons</span>
+        </label>
+        <label class="toggle-row">
+          <input id="labelsToggle" type="checkbox" checked>
+          <span>Forest labels</span>
+        </label>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">Measure</div>
+        <div class="button-row measure-grid" role="group" aria-label="Measurement tools">
+          <button id="measureDistanceButton" type="button">Distance</button>
+          <button id="measureAreaButton" type="button">Area</button>
+          <button id="measureClearButton" type="button">Clear</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">Timeline</div>
+        <div class="button-row four-up" role="group" aria-label="Imagery year">
+          <button id="year2023Button" type="button">2023</button>
+          <button id="year2024Button" type="button">2024</button>
+          <button id="year2025Button" type="button">2025</button>
+          <button class="active" id="year2026Button" type="button">2026</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="gps-panel floating-card" aria-label="GPS controls">
+      <button class="gps-primary" id="locateButton" type="button" aria-label="Show GPS location">GPS</button>
+      <div class="gps-actions">
+        <button id="followButton" type="button" aria-label="Follow user location" aria-pressed="false">Follow</button>
+        <button id="recenterButton" type="button" aria-label="Recenter map to current location">Center</button>
+      </div>
+    </section>
+
+    <section class="current-block-card floating-card hidden" id="currentBlockCard" aria-live="polite">
+      <div class="current-block-title">Bạn đang ở</div>
+      <dl class="current-block-grid">
+        <div><dt>TK</dt><dd id="currentTk">-</dd></div>
+        <div><dt>Khoảnh</dt><dd id="currentKhoanh">-</dd></div>
+        <div><dt>Lô</dt><dd id="currentLo">-</dd></div>
+        <div><dt>Loại rừng</dt><dd id="currentLdlr">-</dd></div>
+        <div><dt>Diện tích</dt><dd id="currentDtich">-</dd></div>
+      </dl>
+    </section>
+
+    <section class="measure-card floating-card hidden" id="measureCard" aria-live="polite">
+      <div class="measure-title" id="measureTitle">Measurement</div>
+      <div class="measure-value" id="measurePrimary">Tap map to start</div>
+      <div class="measure-meta" id="measureSecondary">Distance: 0 m · Area: 0 ha</div>
+    </section>
+
+    <section class="legend legend-collapsed floating-card" id="legendCard" aria-label="Forest type legend">
+      <button class="legend-toggle" id="legendToggleButton" type="button" aria-expanded="false">
+        <span>Legend</span>
+        <span class="legend-chevron" aria-hidden="true">▴</span>
+      </button>
+      <div class="legend-body">
+        <div><span class="swatch swatch-txn"></span>TXN</div>
+        <div><span class="swatch swatch-txk"></span>TXK</div>
+        <div><span class="swatch swatch-rtg"></span>RTG</div>
+        <div><span class="swatch swatch-dt1"></span>DT1</div>
+      </div>
+    </section>
+
+    <section class="results-panel" id="resultsPanel" aria-live="polite">
+      <div class="results-header">
+        <span id="resultsCount">0 results</span>
+        <button id="clearButton" type="button">Clear</button>
+      </div>
+      <div id="resultsList" class="results-list"></div>
+    </section>
+
+    <main id="map" class="map" aria-label="Forest map"></main>
+
+    <aside class="detail-sheet hidden" id="detailSheet" aria-live="polite">
+      <div class="detail-header">
+        <div>
+          <div class="eyebrow">Forest detail</div>
+          <h2 id="detailTitle">Select a polygon</h2>
+        </div>
+        <button id="closeDetailButton" type="button" aria-label="Close detail">×</button>
+      </div>
+      <dl class="detail-grid">
+        <div><dt>Xã</dt><dd id="detailXa">-</dd></div>
+        <div><dt>Tiểu khu</dt><dd id="detailTk">-</dd></div>
+        <div><dt>Khoảnh</dt><dd id="detailKhoanh">-</dd></div>
+        <div><dt>Lô</dt><dd id="detailLo">-</dd></div>
+        <div><dt>Diện tích</dt><dd id="detailDtich">-</dd></div>
+        <div><dt>Loại rừng</dt><dd id="detailLdlr">-</dd></div>
+        <div><dt>Năm trồng</dt><dd id="detailNamtr">-</dd></div>
+      </dl>
+      <button class="detail-action" id="goToPolygonButton" type="button">Go to polygon</button>
+    </aside>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'"></script>
+  <script src="app.js"></script>
+</body>
+</html>
