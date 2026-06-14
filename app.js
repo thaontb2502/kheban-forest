@@ -930,25 +930,25 @@ function hideDetailSheet() {
 function renderDetailGroups(props) {
   return [
     renderDetailSection('THÔNG TIN HIỆN TRẠNG', [
-      renderDetailField('Diện tích', props.dtich, formatArea),
-      renderDetailField('Trạng thái rừng', getFirstValue(props, ['ldlr'])),
-      renderDetailField('Loài cây', getFirstValue(props, ['sldlr'])),
-      renderDetailField('Năm trồng', getFirstValue(props, ['namtr']), formatYear),
-      renderDetailField('Nguồn gốc rừng', getFirstValue(props, ['nggocr'])),
-      renderDetailField('Nguồn gốc rừng trồng', getFirstValue(props, ['nggocrt'])),
+      renderDetailField('dtich', props.dtich, formatArea),
+      renderDetailField('ldlr', getFirstValue(props, ['ldlr'])),
+      renderDetailField('sldlr', getFirstValue(props, ['sldlr'])),
+      renderDetailField('namtr', getFirstValue(props, ['namtr']), formatYear),
+      renderDetailField('nggocr', getFirstValue(props, ['nggocr'])),
+      renderDetailField('nggocrt', getFirstValue(props, ['nggocrt'])),
     ]),
     renderDetailSection('THÔNG TIN QUẢN LÝ', [
-      renderDetailField('Mục đích sử dụng', getFirstValue(props, ['mdsd'])),
-      renderDetailField('Người nhận khoán', getFirstValue(props, ['nguoink'])),
-      renderDetailField('Người trực quản lý', getFirstValue(props, ['nguoitrch'])),
-      renderDetailField('Quyền sử dụng', getFirstValue(props, ['quyensd'])),
-      renderDetailField('Thời hạn sử dụng', getFirstValue(props, ['thoihansd'])),
-      renderDetailField('Tranh chấp', getFirstValue(props, ['trchap'])),
+      renderDetailField('mdsd', getFirstValue(props, ['mdsd'])),
+      renderDetailField('nguoink', getFirstValue(props, ['nguoink'])),
+      renderDetailField('nguoitrch', getFirstValue(props, ['nguoitrch'])),
+      renderDetailField('quyensd', getFirstValue(props, ['quyensd'])),
+      renderDetailField('thoihansd', getFirstValue(props, ['thoihansd'])),
+      renderDetailField('trchap', getFirstValue(props, ['trchap'])),
     ]),
     renderDetailSection('THÔNG TIN TÀI NGUYÊN', [
-      renderDetailField('Trữ lượng gỗ', getFirstValue(props, ['mgolo'])),
-      renderDetailField('MGO', getFirstValue(props, ['mgo'])),
-      renderDetailField('Thành rừng', getFirstValue(props, ['thanhrung'])),
+      renderDetailField('thanhrung', getFirstValue(props, ['thanhrung'])),
+      renderDetailField('mgolo', getFirstValue(props, ['mgolo'])),
+      renderDetailField('mgo', getFirstValue(props, ['mgo'])),
     ]),
   ].filter(Boolean).join('');
 }
