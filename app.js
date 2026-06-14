@@ -1,7 +1,6 @@
 const OSM_STANDARD = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const DATA_URL = 'forest_blocks.geojson';
 const BASEMAP_STORAGE_KEY = 'kheban-forest-basemap';
-const DEBUG_MODE = true;
 
 const BASEMAPS = {
   esriSatellite: {
@@ -104,9 +103,7 @@ const els = {
   searchInput: document.getElementById('searchInput'),
   locateButton: document.getElementById('locateButton'),
   quickLocateButton: document.getElementById('quickLocateButton'),
-  testGpsButton: document.getElementById('testGpsButton'),
   followButton: document.getElementById('followButton'),
-  recenterButton: document.getElementById('recenterButton'),
   clearButton: document.getElementById('clearButton'),
   esriSatelliteButton: document.getElementById('esriSatelliteButton'),
   googleSatelliteButton: document.getElementById('googleSatelliteButton'),
@@ -129,13 +126,7 @@ const els = {
   resultsCount: document.getElementById('resultsCount'),
   detailSheet: document.getElementById('detailSheet'),
   detailTitle: document.getElementById('detailTitle'),
-  detailXa: document.getElementById('detailXa'),
-  detailTk: document.getElementById('detailTk'),
-  detailKhoanh: document.getElementById('detailKhoanh'),
-  detailLo: document.getElementById('detailLo'),
-  detailDtich: document.getElementById('detailDtich'),
-  detailLdlr: document.getElementById('detailLdlr'),
-  detailNamtr: document.getElementById('detailNamtr'),
+  detailContent: document.getElementById('detailContent'),
   closeDetailButton: document.getElementById('closeDetailButton'),
   currentBlockCard: document.getElementById('currentBlockCard'),
   currentXa: document.getElementById('currentXa'),
@@ -167,7 +158,6 @@ async function boot() {
   if (!window.L) {
     throw new Error('Leaflet failed to load. Check Leaflet CDN requests in the browser console.');
   }
-  syncDebugUi();
 
   state.map = L.map('map', {
     zoomControl: false,
@@ -198,9 +188,7 @@ function attachUiEvents() {
   });
   els.locateButton.addEventListener('click', locateMe);
   els.quickLocateButton.addEventListener('click', quickLocate);
-  els.testGpsButton?.addEventListener('click', testGps);
   els.followButton.addEventListener('click', toggleGpsFollow);
-  els.recenterButton.addEventListener('click', recenterToGps);
   els.clearButton.addEventListener('click', clearSearch);
   els.closeDetailButton.addEventListener('click', hideDetailSheet);
   document.addEventListener('click', handlePopupDetailClick);
@@ -502,6 +490,7 @@ function normalizeFeature(feature) {
     ...feature,
     id: key,
     properties: {
+      ...props,
       tk: String(props.tk ?? '').trim(),
       khoanh: String(props.khoanh ?? '').trim(),
       lo: String(props.lo ?? '').trim(),
@@ -929,19 +918,96 @@ function selectFeature(feature) {
 
 function showDetailSheet(feature) {
   const props = feature.properties;
-  els.detailTitle.textContent = `TK ${props.tk} / K ${props.khoanh} / L ${props.lo}`;
-  els.detailXa.textContent = props.xa || '-';
-  els.detailTk.textContent = props.tk || '-';
-  els.detailKhoanh.textContent = props.khoanh || '-';
-  els.detailLo.textContent = props.lo || '-';
-  els.detailDtich.textContent = formatArea(props.dtich);
-  els.detailLdlr.textContent = props.ldlr || '-';
-  els.detailNamtr.textContent = formatYear(props.namtr);
+  els.detailTitle.textContent = 'THÔNG TIN LÔ RỪNG';
+  els.detailContent.innerHTML = renderDetailGroups(props);
   els.detailSheet.classList.remove('hidden');
 }
 
 function hideDetailSheet() {
   els.detailSheet.classList.add('hidden');
+}
+
+function renderDetailGroups(props) {
+  return [
+    renderDetailSection('THÔNG TIN VỊ TRÍ', [
+      renderDetailField('Tiểu khu', getFirstValue(props, ['tk'])),
+      renderDetailField('Khoảnh', getFirstValue(props, ['khoanh'])),
+      renderDetailField('Lô', getFirstValue(props, ['lo'])),
+    ]),
+    renderDetailSection('THÔNG TIN HIỆN TRẠNG', [
+      renderDetailField('Diện tích', props.dtich, formatArea),
+      renderDetailField('Trạng thái rừng', getFirstValue(props, ['ldlr'])),
+      renderDetailField('Loài cây', getFirstValue(props, ['sldlr'])),
+      renderDetailField('Năm trồng', getFirstValue(props, ['namtr']), formatYear),
+      renderDetailField('Nguồn gốc rừng', getFirstValue(props, ['nggocr'])),
+      renderDetailField('Nguồn gốc rừng trồng', getFirstValue(props, ['nggocrt'])),
+    ]),
+    renderDetailSection('THÔNG TIN QUẢN LÝ', [
+      renderDetailField('Mục đích sử dụng', getFirstValue(props, ['mdsd'])),
+      renderDetailField('Chủ rừng', getFirstValue(props, ['churung', 'churungl'])),
+      renderDetailField('Người nhận khoán', getFirstValue(props, ['nguoink'])),
+      renderDetailField('Người trực quản lý', getFirstValue(props, ['nguoitrch'])),
+      renderDetailField('Quyền sử dụng', getFirstValue(props, ['quyensd'])),
+      renderDetailField('Thời hạn sử dụng', getFirstValue(props, ['thoihansd'])),
+      renderDetailField('Tranh chấp', getFirstValue(props, ['trchap'])),
+    ]),
+    renderDetailSection('THÔNG TIN TÀI NGUYÊN', [
+      renderDetailField('Trữ lượng gỗ', getFirstValue(props, ['mgolo'])),
+      renderDetailField('MGO', getFirstValue(props, ['mgo'])),
+    ]),
+  ].filter(Boolean).join('');
+}
+
+function renderDetailSection(title, fields) {
+  const content = fields.filter(Boolean).join('');
+  if (!content) {
+    return '';
+  }
+  return `
+    <section class="detail-section">
+      <h3>${escapeHtml(title)}</h3>
+      <dl class="detail-list">
+        ${content}
+      </dl>
+    </section>
+  `;
+}
+
+function renderDetailField(label, value, formatter) {
+  const text = formatDetailValue(value, formatter);
+  if (!text) {
+    return '';
+  }
+  return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(text)}</dd></div>`;
+}
+
+function getFirstValue(props, keys) {
+  for (const key of keys) {
+    const value = formatDetailValue(props?.[key]);
+    if (value) {
+      return value;
+    }
+  }
+  return '';
+}
+
+function formatDetailValue(value, formatter) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  const raw = typeof formatter === 'function' ? formatter(value) : value;
+  if (raw === null || raw === undefined) {
+    return '';
+  }
+  const text = String(raw).trim();
+  if (!text) {
+    return '';
+  }
+  const lower = text.toLowerCase();
+  if (lower === 'null' || lower === 'undefined' || lower === 'nan' || lower === '-') {
+    return '';
+  }
+  return text;
 }
 
 function handlePopupDetailClick(event) {
@@ -965,20 +1031,10 @@ function openFeaturePopup(feature) {
   }
   const props = feature.properties;
   const rows = [
-    ['Khoảnh', props.khoanh],
-    ['Lô', props.lo],
-    ['Diện tích (ha)', formatPopupArea(props.dtich)],
+    ['Diện tích', formatArea(props.dtich)],
     ['Trạng thái rừng', props.ldlr],
     ['Loài cây', props.sldlr],
     ['Năm trồng', props.namtr],
-    ['Nguồn gốc rừng', props.nggocr],
-    ['Mục đích sử dụng', props.mdsd],
-    ['Thành rừng', props.thanhrung],
-    ['Trữ lượng', props.mgolo],
-    ['MGO', props.mgo],
-    ['Tranh chấp', props.trchap],
-    ['Thời hạn sử dụng', props.thoihansd],
-    ['Địa danh', props.diadanh],
   ]
     .map(([label, value]) => buildPopupRow(label, value))
     .filter(Boolean)
@@ -1013,22 +1069,10 @@ function formatPopupValue(value) {
     return '';
   }
   const lower = text.toLowerCase();
-  if (lower === 'null' || lower === 'undefined' || lower === 'nan') {
+  if (lower === 'null' || lower === 'undefined' || lower === 'nan' || lower === '-') {
     return '';
   }
   return text;
-}
-
-function formatPopupArea(value) {
-  const text = formatPopupValue(value);
-  if (!text) {
-    return '';
-  }
-  const number = Number(text);
-  if (!Number.isFinite(number)) {
-    return text;
-  }
-  return number.toFixed(2);
 }
 
 async function locateMe() {
@@ -1077,26 +1121,6 @@ function quickLocate() {
   }
 }
 
-function testGps() {
-  const feature = getSelectedOrFirstFeature();
-  if (!feature) {
-    alert('No parcel available for GPS test.');
-    return;
-  }
-  const center = feature.bounds?.getCenter();
-  if (!center) {
-    alert('Selected parcel has no valid center.');
-    return;
-  }
-  state.gpsFollow = true;
-  syncGpsButtons();
-  processGpsUpdate({
-    latlng: [center.lat, center.lng],
-    accuracy: 5,
-    centerMap: true,
-  });
-}
-
 function handleGpsError() {
   alert('Unable to access GPS location.');
   stopGpsWatch();
@@ -1112,14 +1136,6 @@ function toggleGpsFollow() {
   if (state.gpsFollow && state.gpsLastLatLng) {
     state.map.setView(state.gpsLastLatLng, Math.max(state.map.getZoom(), 17), { animate: true });
   }
-}
-
-function recenterToGps() {
-  if (state.gpsLastLatLng) {
-    state.map.setView(state.gpsLastLatLng, Math.max(state.map.getZoom(), 17), { animate: true });
-    return;
-  }
-  locateMe();
 }
 
 function syncGpsButtons() {
@@ -1291,11 +1307,6 @@ function ringContainsPoint(ring, point) {
   return inside;
 }
 
-function getSelectedOrFirstFeature() {
-  const selected = state.selectedFeatureId ? findFeatureById(state.selectedFeatureId) : null;
-  return selected || state.features[0] || null;
-}
-
 function findFeatureById(key) {
   return state.features.find((feature) => feature.id === key) || null;
 }
@@ -1311,13 +1322,6 @@ function getFeaturesBounds(features) {
     return featureBounds ? acc.extend(featureBounds) : acc;
   }, L.latLngBounds([]));
   return bounds.isValid() ? bounds : null;
-}
-
-function syncDebugUi() {
-  if (!els.testGpsButton) {
-    return;
-  }
-  els.testGpsButton.classList.toggle('hidden', !DEBUG_MODE);
 }
 
 function findLayerByKey(key) {

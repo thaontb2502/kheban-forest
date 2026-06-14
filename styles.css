@@ -266,17 +266,9 @@ button {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.gps-test {
-  width: 100%;
-  border-radius: 10px;
-  font-weight: 700;
-  background: rgba(250, 204, 21, 0.16);
-  color: #fff7cc;
-}
-
 .gps-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 6px;
 }
 
@@ -534,29 +526,58 @@ button {
   padding: 0;
 }
 
-.detail-grid {
-  margin: 0;
-  padding: 10px 12px 0;
+.detail-content {
   display: grid;
   gap: 10px;
+  padding: 10px 12px 0;
 }
 
-.detail-grid div {
+.detail-section {
   display: grid;
-  grid-template-columns: 110px 1fr;
+  gap: 8px;
+}
+
+.detail-section h3 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+
+.detail-list {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.detail-list div {
+  display: grid;
+  grid-template-columns: 120px 1fr;
   gap: 10px;
   align-items: start;
 }
 
-.detail-grid dt {
+.detail-list dt {
   color: var(--muted);
   font-size: 13px;
 }
 
-.detail-grid dd {
+.detail-list dd {
   margin: 0;
   font-size: 15px;
   word-break: break-word;
+}
+
+.parcel-popup .leaflet-popup-content-wrapper {
+  padding: 2px;
+}
+
+.parcel-popup .leaflet-popup-content {
+  margin: 8px 10px;
+}
+
+.parcel-popup .leaflet-popup-close-button {
+  display: none;
 }
 
 .leaflet-container {

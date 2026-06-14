@@ -80,11 +80,9 @@
 
     <section class="gps-panel floating-card" aria-label="GPS controls">
       <button class="gps-primary" id="locateButton" type="button" aria-label="Show GPS location">GPS</button>
-      <button class="gps-quick" id="quickLocateButton" type="button" aria-label="I am here">📍 Tôi đang ở đâu</button>
-      <button class="gps-test hidden" id="testGpsButton" type="button" aria-label="Test GPS">Test GPS</button>
+      <button class="gps-quick" id="quickLocateButton" type="button" aria-label="Vị trí tôi">📍 Vị trí tôi</button>
       <div class="gps-actions">
-        <button id="followButton" type="button" aria-label="Follow user location" aria-pressed="false">Follow</button>
-        <button id="recenterButton" type="button" aria-label="Recenter map to current location">Center</button>
+        <button id="followButton" type="button" aria-label="Bám vị trí" aria-pressed="false">📌 Bám vị trí</button>
       </div>
     </section>
 
@@ -133,19 +131,11 @@
       <div class="detail-header">
         <div>
           <div class="eyebrow">Forest detail</div>
-          <h2 id="detailTitle">Select a polygon</h2>
+          <h2 id="detailTitle">THÔNG TIN LÔ RỪNG</h2>
         </div>
         <button id="closeDetailButton" type="button" aria-label="Close detail">×</button>
       </div>
-      <dl class="detail-grid">
-        <div><dt>Xã</dt><dd id="detailXa">-</dd></div>
-        <div><dt>Tiểu khu</dt><dd id="detailTk">-</dd></div>
-        <div><dt>Khoảnh</dt><dd id="detailKhoanh">-</dd></div>
-        <div><dt>Lô</dt><dd id="detailLo">-</dd></div>
-        <div><dt>Diện tích</dt><dd id="detailDtich">-</dd></div>
-        <div><dt>Loại rừng</dt><dd id="detailLdlr">-</dd></div>
-        <div><dt>Năm trồng</dt><dd id="detailNamtr">-</dd></div>
-      </dl>
+      <div class="detail-content" id="detailContent"></div>
     </aside>
   </div>
 
