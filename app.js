@@ -918,7 +918,7 @@ function selectFeature(feature) {
 
 function showDetailSheet(feature) {
   const props = feature.properties;
-  els.detailTitle.textContent = 'THÔNG TIN LÔ RỪNG';
+  els.detailTitle.textContent = buildParcelDetailTitle(props);
   els.detailContent.innerHTML = renderDetailGroups(props);
   els.detailSheet.classList.remove('hidden');
 }
@@ -929,11 +929,6 @@ function hideDetailSheet() {
 
 function renderDetailGroups(props) {
   return [
-    renderDetailSection('THÔNG TIN VỊ TRÍ', [
-      renderDetailField('Tiểu khu', getFirstValue(props, ['tk'])),
-      renderDetailField('Khoảnh', getFirstValue(props, ['khoanh'])),
-      renderDetailField('Lô', getFirstValue(props, ['lo'])),
-    ]),
     renderDetailSection('THÔNG TIN HIỆN TRẠNG', [
       renderDetailField('Diện tích', props.dtich, formatArea),
       renderDetailField('Trạng thái rừng', getFirstValue(props, ['ldlr'])),
@@ -944,7 +939,6 @@ function renderDetailGroups(props) {
     ]),
     renderDetailSection('THÔNG TIN QUẢN LÝ', [
       renderDetailField('Mục đích sử dụng', getFirstValue(props, ['mdsd'])),
-      renderDetailField('Chủ rừng', getFirstValue(props, ['churung', 'churungl'])),
       renderDetailField('Người nhận khoán', getFirstValue(props, ['nguoink'])),
       renderDetailField('Người trực quản lý', getFirstValue(props, ['nguoitrch'])),
       renderDetailField('Quyền sử dụng', getFirstValue(props, ['quyensd'])),
@@ -954,8 +948,15 @@ function renderDetailGroups(props) {
     renderDetailSection('THÔNG TIN TÀI NGUYÊN', [
       renderDetailField('Trữ lượng gỗ', getFirstValue(props, ['mgolo'])),
       renderDetailField('MGO', getFirstValue(props, ['mgo'])),
+      renderDetailField('Thành rừng', getFirstValue(props, ['thanhrung'])),
     ]),
   ].filter(Boolean).join('');
+}
+
+function buildParcelDetailTitle(props) {
+  const khoanh = getFirstValue(props, ['khoanh']) || '-';
+  const lo = getFirstValue(props, ['lo']) || '-';
+  return `KHOẢNH ${khoanh} - LÔ ${lo}`.toUpperCase();
 }
 
 function renderDetailSection(title, fields) {

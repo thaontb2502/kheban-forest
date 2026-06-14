@@ -514,7 +514,8 @@ button {
 }
 
 .detail-sheet h2 {
-  font-size: 17px;
+  font-size: 16px;
+  line-height: 1.2;
 }
 
 .detail-header button {
@@ -528,13 +529,13 @@ button {
 
 .detail-content {
   display: grid;
-  gap: 10px;
-  padding: 10px 12px 0;
+  gap: 8px;
+  padding: 8px 12px 0;
 }
 
 .detail-section {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .detail-section h3 {
@@ -547,13 +548,13 @@ button {
 .detail-list {
   margin: 0;
   display: grid;
-  gap: 8px;
+  gap: 5px;
 }
 
 .detail-list div {
   display: grid;
   grid-template-columns: 120px 1fr;
-  gap: 10px;
+  gap: 8px;
   align-items: start;
 }
 
