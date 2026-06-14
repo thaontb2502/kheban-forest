@@ -203,6 +203,7 @@ function attachUiEvents() {
   els.recenterButton.addEventListener('click', recenterToGps);
   els.clearButton.addEventListener('click', clearSearch);
   els.closeDetailButton.addEventListener('click', hideDetailSheet);
+  document.addEventListener('click', handlePopupDetailClick);
   els.esriSatelliteButton.addEventListener('click', () => setBasemap('esriSatellite'));
   els.googleSatelliteButton.addEventListener('click', () => setBasemap('googleSatellite'));
   els.googleHybridButton.addEventListener('click', () => setBasemap('googleHybrid'));
@@ -522,14 +523,17 @@ function renderFeatures(features) {
   state.layer = L.geoJSON(
     { type: 'FeatureCollection', features },
     {
+      bubblingMouseEvents: false,
       style: featureStyle,
       onEachFeature: (feature, layer) => {
         const key = feature.id || feature.properties?.id || `${feature.properties.tk}/${feature.properties.khoanh}/${feature.properties.lo}`;
         layer._khebanKey = key;
         bindForestLabel(feature, layer);
         layer.on('click', (event) => {
-          event.originalEvent?.stopPropagation();
-          selectFeature(feature, layer, true);
+          if (event.originalEvent) {
+            L.DomEvent.stop(event.originalEvent);
+          }
+          selectFeature(feature);
         });
       },
     },
@@ -885,13 +889,11 @@ function focusSearchResults(features, options = {}) {
   }
 
   const first = validFeatures[0];
-  state.selectedFeatureId = getFeatureKey(first);
   if (!keepResultsOpen) {
     collapseSearchResults();
   }
   if (openParcelDetail) {
-    showDetailSheet(first);
-    openFeaturePopup(first);
+    selectFeature(first);
   } else {
     state.map.closePopup();
     hideDetailSheet();
@@ -900,8 +902,6 @@ function focusSearchResults(features, options = {}) {
 
 function focusFeature(feature, openDetail = true) {
   const key = feature.id || feature.properties?.id || `${feature.properties.tk}/${feature.properties.khoanh}/${feature.properties.lo}`;
-  state.selectedFeatureId = key;
-  setSearchHighlights([key]);
   const layer = findLayerByKey(key);
   if (layer) {
     state.map.fitBounds(layer.getBounds().pad(0.15), { maxZoom: 17, animate: true });
@@ -912,19 +912,19 @@ function focusFeature(feature, openDetail = true) {
   collapseSearchResults();
 
   if (openDetail) {
-    showDetailSheet(feature);
-    openFeaturePopup(feature);
+    selectFeature(feature);
+  } else {
+    state.selectedFeatureId = key;
+    setSearchHighlights([key]);
   }
 }
 
-function selectFeature(feature, layer, openDetail) {
-  const key = feature.id || layer._khebanKey;
+function selectFeature(feature) {
+  const key = getFeatureKey(feature);
   state.selectedFeatureId = key;
   setSearchHighlights([key]);
-  if (openDetail) {
-    showDetailSheet(feature);
-    openFeaturePopup(feature);
-  }
+  hideDetailSheet();
+  openFeaturePopup(feature);
 }
 
 function showDetailSheet(feature) {
@@ -944,6 +944,19 @@ function hideDetailSheet() {
   els.detailSheet.classList.add('hidden');
 }
 
+function handlePopupDetailClick(event) {
+  const button = event.target.closest('[data-detail-feature]');
+  if (!button) {
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  const feature = findFeatureById(button.dataset.detailFeature);
+  if (feature) {
+    showDetailSheet(feature);
+  }
+}
+
 function openFeaturePopup(feature) {
   const layer = findLayerByKey(getFeatureKey(feature));
   const latlng = layer?.getBounds().getCenter() || feature.bounds?.getCenter();
@@ -951,19 +964,71 @@ function openFeaturePopup(feature) {
     return;
   }
   const props = feature.properties;
-  L.popup({ closeButton: true, maxWidth: 280 })
+  const rows = [
+    ['Khoảnh', props.khoanh],
+    ['Lô', props.lo],
+    ['Diện tích (ha)', formatPopupArea(props.dtich)],
+    ['Trạng thái rừng', props.ldlr],
+    ['Loài cây', props.sldlr],
+    ['Năm trồng', props.namtr],
+    ['Nguồn gốc rừng', props.nggocr],
+    ['Mục đích sử dụng', props.mdsd],
+    ['Thành rừng', props.thanhrung],
+    ['Trữ lượng', props.mgolo],
+    ['MGO', props.mgo],
+    ['Tranh chấp', props.trchap],
+    ['Thời hạn sử dụng', props.thoihansd],
+    ['Địa danh', props.diadanh],
+  ]
+    .map(([label, value]) => buildPopupRow(label, value))
+    .filter(Boolean)
+    .join('');
+
+  L.popup({ closeButton: true, maxWidth: 280, className: 'parcel-popup' })
     .setLatLng(latlng)
     .setContent(`
       <div class="popup-card">
-        <strong>Xã:</strong> ${escapeHtml(props.xa)}<br>
-        <strong>TK:</strong> ${escapeHtml(props.tk)}<br>
-        <strong>Khoảnh:</strong> ${escapeHtml(props.khoanh)}<br>
-        <strong>Lô:</strong> ${escapeHtml(props.lo)}<br>
-        <strong>Loại rừng:</strong> ${escapeHtml(props.ldlr)}<br>
-        <strong>Diện tích:</strong> ${escapeHtml(formatArea(props.dtich))}
+        <div class="popup-title">Khoảnh ${escapeHtml(props.khoanh || '-')} / Lô ${escapeHtml(props.lo || '-')}</div>
+        ${rows}
+        <button class="popup-detail-button" type="button" data-detail-feature="${escapeHtml(getFeatureKey(feature))}">Chi tiết</button>
       </div>
     `)
     .openOn(state.map);
+}
+
+function buildPopupRow(label, value) {
+  const text = formatPopupValue(value);
+  if (!text) {
+    return '';
+  }
+  return `<div class="popup-row"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(text)}</div>`;
+}
+
+function formatPopupValue(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  const text = String(value).trim();
+  if (!text) {
+    return '';
+  }
+  const lower = text.toLowerCase();
+  if (lower === 'null' || lower === 'undefined' || lower === 'nan') {
+    return '';
+  }
+  return text;
+}
+
+function formatPopupArea(value) {
+  const text = formatPopupValue(value);
+  if (!text) {
+    return '';
+  }
+  const number = Number(text);
+  if (!Number.isFinite(number)) {
+    return text;
+  }
+  return number.toFixed(2);
 }
 
 async function locateMe() {
