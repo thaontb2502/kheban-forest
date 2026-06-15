@@ -917,9 +917,8 @@ function selectFeature(feature) {
 }
 
 function showDetailSheet(feature) {
-  const props = feature.properties;
-  els.detailTitle.textContent = buildParcelDetailTitle(props);
-  els.detailContent.innerHTML = renderDetailGroups(props);
+  els.detailTitle.textContent = 'THÔNG TIN LÔ RỪNG';
+  els.detailContent.innerHTML = renderDetailGroups(feature.properties);
   els.detailSheet.classList.remove('hidden');
 }
 
@@ -928,87 +927,100 @@ function hideDetailSheet() {
 }
 
 function renderDetailGroups(props) {
-  return [
-    renderDetailSection('THÔNG TIN HIỆN TRẠNG', [
-      renderDetailField('nggocr', getFirstValue(props, ['nggocr'])),
-      renderDetailField('nggocrt', getFirstValue(props, ['nggocrt'])),
-    ]),
-    renderDetailSection('THÔNG TIN QUẢN LÝ', [
-      renderDetailField('mdsd', getFirstValue(props, ['mdsd'])),
-      renderDetailField('churung', getFirstValue(props, ['churung', 'churungl'])),
-      renderDetailField('quyensd', getFirstValue(props, ['quyensd'])),
-      renderDetailField('thoihansd', getFirstValue(props, ['thoihansd'])),
-      renderDetailField('trchap', getFirstValue(props, ['trchap'])),
-      renderDetailField('nguoink', getFirstValue(props, ['nguoink'])),
-      renderDetailField('nguoitrch', getFirstValue(props, ['nguoitrch'])),
-    ]),
-    renderDetailSection('THÔNG TIN TÀI NGUYÊN', [
-      renderDetailField('thanhrung', getFirstValue(props, ['thanhrung'])),
-      renderDetailField('mgolo', getFirstValue(props, ['mgolo'])),
-      renderDetailField('mgo', getFirstValue(props, ['mgo'])),
-    ]),
-    renderDetailSection('THÔNG TIN KHÁC', [
-      renderDetailField('diadanh', getFirstValue(props, ['diadanh'])),
-    ]),
-  ].filter(Boolean).join('');
+  const sections = [
+    {
+      title: 'THÔNG TIN HIỆN TRẠNG',
+      fields: ['dtich', 'ldlr', 'sldlr', 'namtr', 'nggocr', 'nggocrt'],
+    },
+    {
+      title: 'THÔNG TIN QUẢN LÝ',
+      fields: ['mdsd', 'nguoink', 'nguoitrch', 'quyensd', 'thoihansd', 'trchap'],
+    },
+    {
+      title: 'THÔNG TIN TÀI NGUYÊN',
+      fields: ['thanhrung', 'mgolo', 'mgo'],
+    },
+    {
+      title: 'THÔNG TIN VỊ TRÍ',
+      fields: ['tk', 'khoanh', 'lo', 'diadanh'],
+    },
+  ];
+
+  return sections
+    .map((section) => renderDetailSection(section.title, section.fields, props))
+    .filter(Boolean)
+    .join('');
 }
 
-function buildParcelDetailTitle(props) {
-  const khoanh = getFirstValue(props, ['khoanh']) || '-';
-  const lo = getFirstValue(props, ['lo']) || '-';
-  return `KHOẢNH ${khoanh} - LÔ ${lo}`.toUpperCase();
-}
+function renderDetailSection(title, fields, props) {
+  const rows = fields
+    .map((field) => renderDetailField(field, props?.[field]))
+    .filter(Boolean)
+    .join('');
 
-function renderDetailSection(title, fields) {
-  const content = fields.filter(Boolean).join('');
-  if (!content) {
+  if (!rows) {
     return '';
   }
+
   return `
     <section class="detail-section">
       <h3>${escapeHtml(title)}</h3>
       <dl class="detail-list">
-        ${content}
+        ${rows}
       </dl>
     </section>
   `;
 }
 
-function renderDetailField(label, value, formatter) {
-  const text = formatDetailValue(value, formatter);
+function renderDetailField(field, value) {
+  const text = formatDetailValue(field, value);
   if (!text) {
     return '';
   }
-  return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(text)}</dd></div>`;
+  return `<div><dt>${escapeHtml(field)}</dt><dd>${escapeHtml(text)}</dd></div>`;
+}
+
+function formatDetailValue(field, value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  const text = String(value).trim();
+  if (!text) {
+    return '';
+  }
+
+  const lower = text.toLowerCase();
+  if (lower === 'null' || lower === 'undefined' || lower === 'nan') {
+    return '';
+  }
+
+  if (isZeroValue(text) && shouldHideZeroDetailValue(field)) {
+    return '';
+  }
+
+  return text;
+}
+
+function isZeroValue(value) {
+  return Number(value) === 0;
+}
+
+function shouldHideZeroDetailValue(field) {
+  return new Set([
+    'nguoink',
+    'nguoitrch',
+  ]).has(field);
 }
 
 function getFirstValue(props, keys) {
   for (const key of keys) {
-    const value = formatDetailValue(props?.[key]);
+    const value = formatPopupValue(props?.[key]);
     if (value) {
       return value;
     }
   }
   return '';
-}
-
-function formatDetailValue(value, formatter) {
-  if (value === null || value === undefined) {
-    return '';
-  }
-  const raw = typeof formatter === 'function' ? formatter(value) : value;
-  if (raw === null || raw === undefined) {
-    return '';
-  }
-  const text = String(raw).trim();
-  if (!text) {
-    return '';
-  }
-  const lower = text.toLowerCase();
-  if (lower === 'null' || lower === 'undefined' || lower === 'nan') {
-    return '';
-  }
-  return text;
 }
 
 function handlePopupDetailClick(event) {
