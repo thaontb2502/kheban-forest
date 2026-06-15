@@ -1008,14 +1008,13 @@ function isZeroValue(value) {
 
 function shouldHideZeroDetailValue(field) {
   return new Set([
-    'nguoink',
-    'nguoitrch',
+    'namtr',
   ]).has(field);
 }
 
 function getFirstValue(props, keys) {
   for (const key of keys) {
-    const value = formatPopupValue(props?.[key]);
+    const value = formatPopupValue(key, props?.[key]);
     if (value) {
       return value;
     }
@@ -1066,14 +1065,14 @@ function openFeaturePopup(feature) {
 }
 
 function buildPopupRow(label, value) {
-  const text = formatPopupValue(value);
+  const text = formatPopupValue(label, value);
   if (!text) {
     return '';
   }
   return `<div class="popup-row"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(text)}</div>`;
 }
 
-function formatPopupValue(value) {
+function formatPopupValue(field, value) {
   if (value === null || value === undefined) {
     return '';
   }
@@ -1083,6 +1082,9 @@ function formatPopupValue(value) {
   }
   const lower = text.toLowerCase();
   if (lower === 'null' || lower === 'undefined' || lower === 'nan') {
+    return '';
+  }
+  if (isZeroValue(text) && shouldHideZeroDetailValue(field)) {
     return '';
   }
   return text;
