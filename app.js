@@ -935,16 +935,20 @@ function renderDetailGroups(props) {
     ]),
     renderDetailSection('THÔNG TIN QUẢN LÝ', [
       renderDetailField('mdsd', getFirstValue(props, ['mdsd'])),
-      renderDetailField('nguoink', getFirstValue(props, ['nguoink'])),
-      renderDetailField('nguoitrch', getFirstValue(props, ['nguoitrch'])),
+      renderDetailField('churung', getFirstValue(props, ['churung', 'churungl'])),
       renderDetailField('quyensd', getFirstValue(props, ['quyensd'])),
       renderDetailField('thoihansd', getFirstValue(props, ['thoihansd'])),
       renderDetailField('trchap', getFirstValue(props, ['trchap'])),
+      renderDetailField('nguoink', getFirstValue(props, ['nguoink'])),
+      renderDetailField('nguoitrch', getFirstValue(props, ['nguoitrch'])),
     ]),
     renderDetailSection('THÔNG TIN TÀI NGUYÊN', [
       renderDetailField('thanhrung', getFirstValue(props, ['thanhrung'])),
       renderDetailField('mgolo', getFirstValue(props, ['mgolo'])),
       renderDetailField('mgo', getFirstValue(props, ['mgo'])),
+    ]),
+    renderDetailSection('THÔNG TIN KHÁC', [
+      renderDetailField('diadanh', getFirstValue(props, ['diadanh'])),
     ]),
   ].filter(Boolean).join('');
 }
@@ -1001,7 +1005,7 @@ function formatDetailValue(value, formatter) {
     return '';
   }
   const lower = text.toLowerCase();
-  if (lower === 'null' || lower === 'undefined' || lower === 'nan' || lower === '-') {
+  if (lower === 'null' || lower === 'undefined' || lower === 'nan') {
     return '';
   }
   return text;
@@ -1066,7 +1070,7 @@ function formatPopupValue(value) {
     return '';
   }
   const lower = text.toLowerCase();
-  if (lower === 'null' || lower === 'undefined' || lower === 'nan' || lower === '-') {
+  if (lower === 'null' || lower === 'undefined' || lower === 'nan') {
     return '';
   }
   return text;
