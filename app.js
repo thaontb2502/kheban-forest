@@ -930,10 +930,6 @@ function hideDetailSheet() {
 function renderDetailGroups(props) {
   return [
     renderDetailSection('THÔNG TIN HIỆN TRẠNG', [
-      renderDetailField('dtich', props.dtich, formatArea),
-      renderDetailField('ldlr', getFirstValue(props, ['ldlr'])),
-      renderDetailField('sldlr', getFirstValue(props, ['sldlr'])),
-      renderDetailField('namtr', getFirstValue(props, ['namtr']), formatYear),
       renderDetailField('nggocr', getFirstValue(props, ['nggocr'])),
       renderDetailField('nggocrt', getFirstValue(props, ['nggocrt'])),
     ]),
@@ -1032,10 +1028,10 @@ function openFeaturePopup(feature) {
   }
   const props = feature.properties;
   const rows = [
-    ['Diện tích', formatArea(props.dtich)],
-    ['Trạng thái rừng', props.ldlr],
-    ['Loài cây', props.sldlr],
-    ['Năm trồng', props.namtr],
+    ['dtich', props.dtich],
+    ['ldlr', props.ldlr],
+    ['sldlr', props.sldlr],
+    ['namtr', props.namtr],
   ]
     .map(([label, value]) => buildPopupRow(label, value))
     .filter(Boolean)
