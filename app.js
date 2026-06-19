@@ -1,5 +1,6 @@
 const OSM_STANDARD = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const DATA_URL = 'forest_blocks.geojson';
+const GALLERY_URL = 'gallery.json';
 const BASEMAP_STORAGE_KEY = 'kheban-forest-basemap';
 
 const BASEMAPS = {
@@ -96,9 +97,13 @@ const state = {
   measurePoints: [],
   measureLayer: null,
   measureMarkers: [],
+  galleryLoaded: false,
 };
 
 const els = {
+  appShell: document.querySelector('.app-shell'),
+  mapViewButton: document.getElementById('mapViewButton'),
+  galleryViewButton: document.getElementById('galleryViewButton'),
   searchForm: document.getElementById('searchForm'),
   searchInput: document.getElementById('searchInput'),
   locateButton: document.getElementById('locateButton'),
@@ -143,6 +148,12 @@ const els = {
   measurePrimary: document.getElementById('measurePrimary'),
   measureSecondary: document.getElementById('measureSecondary'),
   networkStatus: document.getElementById('networkStatus'),
+  galleryPage: document.getElementById('galleryPage'),
+  galleryContent: document.getElementById('galleryContent'),
+  lightbox: document.getElementById('lightbox'),
+  lightboxCloseButton: document.getElementById('lightboxCloseButton'),
+  lightboxImage: document.getElementById('lightboxImage'),
+  lightboxCaption: document.getElementById('lightboxCaption'),
 };
 
 boot().catch((error) => {
@@ -182,6 +193,8 @@ async function boot() {
 }
 
 function attachUiEvents() {
+  els.mapViewButton.addEventListener('click', showMapView);
+  els.galleryViewButton.addEventListener('click', showGalleryView);
   els.searchForm.addEventListener('submit', (event) => {
     event.preventDefault();
     runSearch();
@@ -209,6 +222,18 @@ function attachUiEvents() {
   });
   els.layerMenuButton.addEventListener('click', toggleLayerPanel);
   els.legendToggleButton.addEventListener('click', toggleLegendCard);
+  els.galleryContent.addEventListener('click', handleGalleryClick);
+  els.lightboxCloseButton.addEventListener('click', closeLightbox);
+  els.lightbox.addEventListener('click', (event) => {
+    if (event.target === els.lightbox) {
+      closeLightbox();
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeLightbox();
+    }
+  });
   Object.entries(els.yearButtons).forEach(([year, button]) => {
     button.addEventListener('click', () => setImageryYear(year));
   });
@@ -223,6 +248,111 @@ function attachUiEvents() {
     state.map.closePopup();
     hideDetailSheet();
   });
+}
+
+function showMapView() {
+  els.appShell.classList.remove('gallery-mode');
+  els.galleryPage.classList.add('hidden');
+  closeLightbox();
+  setActiveViewButton('map');
+  setTimeout(() => state.map?.invalidateSize(), 0);
+}
+
+async function showGalleryView() {
+  els.appShell.classList.add('gallery-mode');
+  els.galleryPage.classList.remove('hidden');
+  closeLayerPanel();
+  hideDetailSheet();
+  state.map.closePopup();
+  setActiveViewButton('gallery');
+  if (!state.galleryLoaded) {
+    await loadGallery();
+  }
+}
+
+function setActiveViewButton(view) {
+  const isMap = view === 'map';
+  els.mapViewButton.classList.toggle('active', isMap);
+  els.galleryViewButton.classList.toggle('active', !isMap);
+  els.mapViewButton.setAttribute('aria-pressed', String(isMap));
+  els.galleryViewButton.setAttribute('aria-pressed', String(!isMap));
+}
+
+async function loadGallery() {
+  els.galleryContent.innerHTML = '<div class="gallery-empty">Đang tải thư viện ảnh...</div>';
+  try {
+    const response = await fetch(GALLERY_URL);
+    if (!response.ok) {
+      throw new Error(`Failed to load ${GALLERY_URL}: HTTP ${response.status}`);
+    }
+    const data = await response.json();
+    renderGallery(Array.isArray(data.groups) ? data.groups : []);
+    state.galleryLoaded = true;
+  } catch (error) {
+    console.error(error);
+    els.galleryContent.innerHTML = '<div class="gallery-empty">Không tải được thư viện ảnh.</div>';
+  }
+}
+
+function renderGallery(groups) {
+  if (!groups.length) {
+    els.galleryContent.innerHTML = '<div class="gallery-empty">Chưa có ảnh trong thư viện.</div>';
+    return;
+  }
+
+  els.galleryContent.innerHTML = groups.map((group) => {
+    const items = Array.isArray(group.items) ? group.items : [];
+    const cards = items.map(renderGalleryCard).join('');
+    return `
+      <section class="gallery-group">
+        <h2>${escapeHtml(group.title || 'Thư viện ảnh')}</h2>
+        <div class="gallery-grid">
+          ${cards || '<div class="gallery-empty">Chưa có ảnh.</div>'}
+        </div>
+      </section>
+    `;
+  }).join('');
+}
+
+function renderGalleryCard(item) {
+  const src = String(item?.src || '').trim();
+  if (!src) {
+    return '';
+  }
+  const caption = String(item?.caption || '').trim();
+  return `
+    <figure class="gallery-card" data-src="${escapeHtml(src)}" data-caption="${escapeHtml(caption)}">
+      <img src="${escapeHtml(src)}" alt="${escapeHtml(caption || 'Ảnh thư viện')}" loading="lazy">
+      ${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ''}
+    </figure>
+  `;
+}
+
+function handleGalleryClick(event) {
+  const card = event.target.closest('.gallery-card');
+  if (!card) {
+    return;
+  }
+  openLightbox(card.dataset.src, card.dataset.caption || '');
+}
+
+function openLightbox(src, caption) {
+  if (!src) {
+    return;
+  }
+  els.lightboxImage.src = src;
+  els.lightboxImage.alt = caption || 'Ảnh thư viện';
+  els.lightboxCaption.textContent = caption || '';
+  els.lightbox.classList.remove('hidden');
+}
+
+function closeLightbox() {
+  if (els.lightbox.classList.contains('hidden')) {
+    return;
+  }
+  els.lightbox.classList.add('hidden');
+  els.lightboxImage.removeAttribute('src');
+  els.lightboxCaption.textContent = '';
 }
 
 function toggleLayerPanel() {

@@ -48,6 +48,36 @@ button {
   inset: 0;
 }
 
+.app-nav {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top));
+  left: calc(10px + env(safe-area-inset-left));
+  z-index: 1300;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(14, 24, 18, 0.86);
+  backdrop-filter: blur(10px);
+}
+
+.app-nav button {
+  min-height: 34px;
+  border-radius: 10px;
+  padding: 7px 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.app-nav button.active {
+  background: var(--accent-strong);
+  color: #ffffff;
+}
+
 .floating-card,
 .status,
 .layer-fab,
@@ -65,7 +95,7 @@ button {
 
 .search-bar {
   position: absolute;
-  top: calc(10px + env(safe-area-inset-top));
+  top: calc(58px + env(safe-area-inset-top));
   left: calc(10px + env(safe-area-inset-left));
   width: 160px;
   height: 40px;
@@ -136,7 +166,7 @@ button {
 
 .status-inline {
   position: absolute;
-  top: calc(52px + env(safe-area-inset-top));
+  top: calc(102px + env(safe-area-inset-top));
   left: calc(10px + env(safe-area-inset-left));
   z-index: 1000;
   padding: 6px 8px;
@@ -165,7 +195,7 @@ button {
 
 .layer-panel {
   position: absolute;
-  top: calc(56px + env(safe-area-inset-top));
+  top: calc(58px + env(safe-area-inset-top));
   right: calc(10px + env(safe-area-inset-right));
   width: min(280px, calc(100vw - 20px));
   padding: 10px;
@@ -569,6 +599,147 @@ button {
   word-break: break-word;
 }
 
+.gallery-mode .search-bar,
+.gallery-mode .status,
+.gallery-mode .layer-fab,
+.gallery-mode .layer-panel,
+.gallery-mode .gps-panel,
+.gallery-mode .current-block-card,
+.gallery-mode .measure-card,
+.gallery-mode .legend,
+.gallery-mode .results-panel,
+.gallery-mode .detail-sheet {
+  display: none;
+}
+
+.gallery-page {
+  position: absolute;
+  inset: 0;
+  z-index: 1200;
+  padding: calc(62px + env(safe-area-inset-top)) 12px calc(18px + env(safe-area-inset-bottom));
+  overflow: auto;
+  background: linear-gradient(180deg, rgba(11, 18, 16, 0.98), rgba(10, 17, 14, 0.96));
+}
+
+.gallery-page.hidden {
+  display: none;
+}
+
+.gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1080px;
+  margin: 0 auto 14px;
+}
+
+.gallery-header h1 {
+  margin: 2px 0 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.gallery-content {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+}
+
+.gallery-group {
+  display: grid;
+  gap: 10px;
+}
+
+.gallery-group h2 {
+  margin: 0;
+  color: var(--accent);
+  font-size: 14px;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.gallery-card {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.gallery-card img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: block;
+  object-fit: cover;
+  background: #07100c;
+}
+
+.gallery-card figcaption {
+  padding: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.gallery-empty {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  place-items: center;
+  gap: 12px;
+  padding: 48px 14px calc(20px + env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.92);
+}
+
+.lightbox.hidden {
+  display: none;
+}
+
+.lightbox img {
+  max-width: 100%;
+  max-height: 78vh;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lightbox-caption {
+  min-height: 20px;
+  color: #ffffff;
+  font-size: 14px;
+  text-align: center;
+}
+
 .parcel-popup .leaflet-popup-content-wrapper {
   padding: 2px;
 }
@@ -678,6 +849,10 @@ button {
 @media (min-width: 768px) {
   .search-bar {
     width: 220px;
+  }
+
+  .gallery-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .results-panel {

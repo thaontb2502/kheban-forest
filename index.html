@@ -18,6 +18,11 @@
 </head>
 <body>
   <div class="app-shell">
+    <nav class="app-nav floating-card" aria-label="Main navigation">
+      <button class="active" id="mapViewButton" type="button" aria-pressed="true">🗺️ Bản đồ</button>
+      <button id="galleryViewButton" type="button" aria-pressed="false">📷 Thư viện ảnh</button>
+    </nav>
+
     <form class="search-bar floating-card" id="searchForm" aria-label="Search forest blocks">
       <label class="sr-only" for="searchInput">Search forest block</label>
       <input id="searchInput" type="search" autocomplete="off" inputmode="search" placeholder="Khoảnh/Lô · Ví dụ: 22/35">
@@ -136,6 +141,22 @@
       </div>
       <div class="detail-content" id="detailContent"></div>
     </aside>
+
+    <section class="gallery-page hidden" id="galleryPage" aria-label="Thư viện ảnh">
+      <div class="gallery-header">
+        <div>
+          <div class="eyebrow">KheBan Forest</div>
+          <h1>📷 THƯ VIỆN ẢNH</h1>
+        </div>
+      </div>
+      <div class="gallery-content" id="galleryContent"></div>
+    </section>
+
+    <div class="lightbox hidden" id="lightbox" role="dialog" aria-modal="true" aria-label="Image preview">
+      <button class="lightbox-close" id="lightboxCloseButton" type="button" aria-label="Close image">×</button>
+      <img id="lightboxImage" alt="">
+      <div class="lightbox-caption" id="lightboxCaption"></div>
+    </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'"></script>

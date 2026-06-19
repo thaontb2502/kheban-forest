@@ -1,10 +1,11 @@
-const CACHE_NAME = 'kheban-forest-v99';
+const CACHE_NAME = 'kheban-forest-v100';
 
 const APP_ASSETS = [
   './',
   './index.html',
   './app.js',
   './styles.css',
+  './gallery.json',
   './manifest.webmanifest',
   './forest_blocks.geojson',
   './icon-192.png',
@@ -57,12 +58,17 @@ self.addEventListener('fetch', (event) => {
       url.pathname === '/index.html' ||
       url.pathname === '/app.js' ||
       url.pathname === '/styles.css' ||
+      url.pathname === '/gallery.json' ||
       url.pathname === '/manifest.webmanifest' ||
       url.pathname === '/forest_blocks.geojson' ||
       url.pathname === '/icon-192.png' ||
       url.pathname === '/icon-512.png' ||
       url.pathname === '/apple-touch-icon.png'
     ) {
+      event.respondWith(cacheFirst(request));
+      return;
+    }
+    if (url.pathname.startsWith('/images/')) {
       event.respondWith(cacheFirst(request));
       return;
     }
