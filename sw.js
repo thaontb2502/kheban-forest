@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kheban-forest-v100';
+const CACHE_NAME = 'kheban-forest-v101';
 
 const APP_ASSETS = [
   './',

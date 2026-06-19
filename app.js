@@ -3,6 +3,45 @@ const DATA_URL = 'forest_blocks.geojson';
 const GALLERY_URL = 'gallery.json';
 const BASEMAP_STORAGE_KEY = 'kheban-forest-basemap';
 
+const DEFAULT_GALLERY_GROUPS = [
+  {
+    title: 'Ảnh hiện trường',
+    items: [
+      { src: 'images/RUNG1.png', caption: 'Ảnh hiện trường 1' },
+      { src: 'images/RUNG2.png', caption: 'Ảnh hiện trường 2' },
+      { src: 'images/RUNG3.png', caption: 'Ảnh hiện trường 3' },
+      { src: 'images/RUNG4.png', caption: 'Ảnh hiện trường 4' },
+      { src: 'images/RUNG5.png', caption: 'Ảnh hiện trường 5' },
+    ],
+  },
+  {
+    title: 'Ảnh Drone',
+    items: [
+      { src: 'images/RUNG6.png', caption: 'Ảnh drone 1' },
+      { src: 'images/RUNG7.png', caption: 'Ảnh drone 2' },
+      { src: 'images/RUNG9.png', caption: 'Ảnh drone 3' },
+      { src: 'images/RUNG10.png', caption: 'Ảnh drone 4' },
+    ],
+  },
+  {
+    title: 'Ảnh vệ tinh',
+    items: [
+      { src: 'images/RUNG11.png', caption: 'Ảnh vệ tinh 1' },
+      { src: 'images/RUNG12.png', caption: 'Ảnh vệ tinh 2' },
+      { src: 'images/RUNG13.png', caption: 'Ảnh vệ tinh 3' },
+      { src: 'images/RUNG14.png', caption: 'Ảnh vệ tinh 4' },
+    ],
+  },
+  {
+    title: 'Google Earth',
+    items: [
+      { src: 'images/RUNG15.png', caption: 'Google Earth 1' },
+      { src: 'images/RUNG16.png', caption: 'Google Earth 2' },
+      { src: 'images/Rung2016.png', caption: 'Google Earth 2016' },
+    ],
+  },
+];
+
 const BASEMAPS = {
   esriSatellite: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -290,7 +329,8 @@ async function loadGallery() {
     state.galleryLoaded = true;
   } catch (error) {
     console.error(error);
-    els.galleryContent.innerHTML = '<div class="gallery-empty">Không tải được thư viện ảnh.</div>';
+    renderGallery(DEFAULT_GALLERY_GROUPS);
+    state.galleryLoaded = true;
   }
 }
 
